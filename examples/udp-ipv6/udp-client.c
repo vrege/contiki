@@ -50,7 +50,15 @@ static void
 tcpip_handler(void)
 {
   char *str;
-
+  static int toggle = 0;
+  if (toggle == 0) {
+	leds_on(LEDS_YELLOW);
+	toggle = 1 - toggle;
+	}
+  else {
+	leds_off(LEDS_YELLOW);
+	toggle = 1 - toggle;
+	}
   if(uip_newdata()) {
     str = uip_appdata;
     str[uip_datalen()] = '\0';
@@ -66,7 +74,7 @@ timeout_handler(void)
 
   printf("Client sending to: ");
   PRINT6ADDR(&client_conn->ripaddr);
-  sprintf(buf, "Hello %d from the client", ++seq_id);
+  sprintf(buf, "Button pressed %d on the client", ++seq_id);
   printf(" (msg: %s)\n", buf);
 #if SEND_TOO_LARGE_PACKET_TO_TEST_FRAGMENTATION
   uip_udp_packet_send(client_conn, buf, UIP_APPDATA_SIZE);
@@ -157,6 +165,8 @@ PROCESS_THREAD(udp_client_process, ev, data)
   set_global_address();
 #endif
 
+PRINTF("hostname: %s\n",resolv_get_hostname());
+
   print_local_addresses();
 
   static resolv_status_t status = RESOLV_STATUS_UNCACHED;
@@ -180,12 +190,13 @@ PROCESS_THREAD(udp_client_process, ev, data)
   PRINTF(" local/remote port %u/%u\n",
 	UIP_HTONS(client_conn->lport), UIP_HTONS(client_conn->rport));
 
-  etimer_set(&et, SEND_INTERVAL);
+  //etimer_set(&et, SEND_INTERVAL);
   while(1) {
     PROCESS_YIELD();
-    if(etimer_expired(&et)) {
-      timeout_handler();
-      etimer_restart(&et);
+    if(ev == sensors_event) {
+      if(data == &button_select_sensor) {
+      	timeout_handler();
+	   }
     } else if(ev == tcpip_event) {
       tcpip_handler();
     }
